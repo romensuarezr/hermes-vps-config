@@ -1,0 +1,18 @@
+[Unit]
+Description=WhatsApp bridge (independiente, puerto 3001)
+After=network.target tailscaled.service
+Wants=tailscaled.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/ubuntu/.hermes
+Environment=HOME=/home/ubuntu
+EnvironmentFile=/home/ubuntu/.hermes/.env
+ExecStart=/home/ubuntu/.hermes/node/bin/node /home/ubuntu/.hermes/hermes-agent/scripts/whatsapp-bridge/bridge.js --port 3001 --session /home/ubuntu/.hermes/whatsapp/session --mode bot
+Restart=on-failure
+RestartSec=2
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

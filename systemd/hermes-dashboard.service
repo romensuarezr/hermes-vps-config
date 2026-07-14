@@ -1,0 +1,16 @@
+[Unit]
+Description=Hermes Agent Dashboard
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+EnvironmentFile=%h/.hermes/.env
+ExecStart=/home/ubuntu/.hermes/hermes-agent/venv/bin/hermes dashboard --host 100.77.82.13 --port 9119 --tui --no-open
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

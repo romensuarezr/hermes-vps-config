@@ -1,0 +1,80 @@
+# Runtime / sesiones / secretos
+*.session
+*.token
+*.secret
+.env
+.env.*
+auth.json
+*sessions*
+request_dump*.json
+*.db
+*.db-shm
+*.db-wal
+response_store.db
+kanban.db
+projects.db
+
+
+# WhatsApp bridge — sesión y credenciales
+whatsapp/session/*
+!whatsapp/session/.gitkeep
+whatsapp/creds.json
+whatsapp/bridge.log
+
+
+# Caches y datos efímeros
+audio_cache/*
+image_cache/*
+cache/*
+memory_*
+
+
+# Logs
+*.log
+logs/**
+audio_cache/**
+documents/**
+
+
+# Configuraciones backup locales
+config.yaml.bak*
+config.yaml.bak_*
+
+
+# node_modules / venv
+node_modules/
+**/node_modules/
+venv/
+.venv/
+
+
+# OS / editor artifacts
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+
+# crontabs / lockfiles rotos
+.gateway.lock
+.gateway.pid
+.auth.lock
+.context_length_cache.yaml
+.update_check
+.skills_prompt_snapshot.json
+.hermes_history
+
+
+# snapshots y dumps
+desktop-build-stamp.json
+state.db*
+ollama_cloud_models_cache.json
+models_dev_cache.json
+nous_recommended_cache.json
+
+
+# esqueleto explícito para directorios ignorados
+whatsapp/session/.gitkeep

@@ -1,0 +1,47 @@
+# Configuración no sensible de Hermes.
+# Los secretos y tokens viven en .env (no versionado).
+# Renovar google_token.json manualmente; revocar y reautenticar al cambiar scopes.
+
+model:
+  default: stepfun/step-3.7-flash:free
+  provider: nous
+  base_url: ''
+  api_key: ''
+web:
+  backend: firecrawl
+browser:
+  cloud_provider: browser-use
+display:
+  personality: pirate
+tts:
+  provider: openai
+  edge:
+    voice: es-ES-ElviraNeural
+stt:
+  provider: local
+whatsapp:
+  unauthorized_dm_behavior: ignore
+  group_policy: allowlist
+  group_allow_from:
+    - 34639205572-1502904587@g.us
+    - 120363428301748271@g.us
+_config_version: 33
+mcpServers:
+  airtable:
+    command: npx
+    args:
+      - -y
+      - '@airtable/mcp-server'
+    env:
+      AIRTABLE_API_KEY: ${AIRTABLE_API_KEY}
+image_gen:
+  use_gateway: true
+custom_providers:
+  local-ollama:
+    base_url: http://127.0.0.1:11434/v1
+    api_key: ollama
+    models:
+      llama3.1:8b:
+        id: llama3.1:8b
+        name: Llama 3.1 8B
+        provider: local-ollama

@@ -1,0 +1,172 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+import re
+import signal
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+DB_PATH = Path('/home/ubuntu/.hermes/whatsapp/groups/known_groups.json')
+BRIDGE_LOG = Path('/home/ubuntu/.hermes/whatsapp/bridge.log')
+PAT_GUS = re.compile(r'@g\.us')
+PAT_REMOTE = re.compile(r'remoteJid["\:\\s]+([^"}\\s,]+)')
+PAT_GROUP_ACTION = re.compile(r'participants?.*?(?:add|remove|join|leave|update)', re.I)
+
+DEFAULTS: dict[str, dict] = {}
+
+
+def now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def load_db() -> dict[str, dict]:
+    if DB_PATH.exists():
+        try:
+            return json.loads(DB_PATH.read_text())
+        except Exception:
+            return dict(DEFAULTS)
+    return dict(DEFAULTS)
+
+
+def save_db(db: dict[str, dict]) -> None:
+    tmp = DB_PATH.with_suffix('.tmp')
+    tmp.write_text(json.dumps(db, ensure_ascii=False, indent=2) + '\n')
+    tmp.replace(DB_PATH)
+
+
+def db_cleanup(db: dict[str, dict], max_entries: int = 500) -> dict[str, dict]:
+    if len(db) <= max_entries:
+        return db
+    ranked = sorted(db.items(), key=lambda kv: kv[1].get('last_seen', ''), reverse=True)
+    return dict(ranked[:max_entries])
+
+
+def append_entry(db: dict[str, dict], jid: str, kind: str, note: str = '') -> None:
+    jid = jid.strip().strip('"\'')
+    if not jid or '@g.us' not in jid:
+        return
+    try:
+        obj = json.loads(note) if isinstance(note, str) else None
+    except Exception:
+        obj = None
+    name = ''
+    if isinstance(obj, dict):
+        name = str(
+            obj.get('subject')
+            or obj.get('formattedTitle')
+            or obj.get('groupMetadata', {}).get('subject')
+            or obj.get('groupMetadata', {}).get('formattedTitle')
+            or ''
+        ).strip()
+    rec = db.setdefault(jid, {
+        'first_seen': now_iso(),
+        'source': 'watcher-auto',
+        'last_seen': now_iso(),
+        'context': [],
+        'join_events': [],
+    })
+    rec['last_seen'] = now_iso()
+    rec.setdefault(kind + 's', 0)
+    rec[kind + 's'] += 1
+    if name and not rec.get('name'):
+        rec['name'] = name
+    if note:
+        rec.setdefault('context', [])
+        rec['context'] = [note] + rec['context'][:19]
+
+
+def process_line(db: dict[str, dict], line: str) -> None:
+    if not line or '@g.us' not in line:
+        return
+    try:
+        obj = json.loads(line)
+    except Exception:
+        return
+
+    chat_id = obj.get('key', {}).get('remoteJid') or obj.get('chatId') or ''
+    if not chat_id:
+        return
+
+    if PAT_GUS.search(chat_id):
+        note = json.dumps(obj, ensure_ascii=False)
+        candidates = re.findall(r'\d{10,20}@g\.us', chat_id)
+        for jid in candidates:
+            if PAT_GROUP_ACTION.search(note):
+                append_entry(db, jid, 'group_action', note[:240])
+            else:
+                append_entry(db, jid, 'mention', note[:240])
+
+
+def stream_bridge_log(db: dict[str, dict]) -> None:
+    if not BRIDGE_LOG.exists():
+        return
+    try:
+        data = BRIDGE_LOG.read_bytes()
+    except Exception:
+        return
+    if not data:
+        return
+    try:
+        text = data.decode('utf-8', errors='ignore')
+    except Exception:
+        return
+    for line in text.splitlines():
+        process_line(db, line)
+
+
+def tail_and_watch(db: dict[str, dict]) -> int:
+    if not BRIDGE_LOG.exists():
+        print('bridge log missing', flush=True)
+        return 1
+
+    with BRIDGE_LOG.open('rb') as fh:
+        fh.seek(0, 2)
+        while True:
+            line = fh.readline()
+            if not line:
+                try:
+                    import time
+                    time.sleep(0.5)
+                except KeyboardInterrupt:
+                    break
+                continue
+            try:
+                text = line.decode('utf-8', errors='ignore')
+            except Exception:
+                continue
+            text = text.rstrip('\n')
+            if not text:
+                continue
+            try:
+                process_line(db, text)
+            except Exception as exc:
+                sys.stderr.write(f'parse error: {exc}\n')
+                sys.stderr.flush()
+            try:
+                save_db(db)
+            except Exception:
+                pass
+    return 0
+
+
+def run() -> int:
+    db = load_db()
+    stream_bridge_log(db)
+    rc = tail_and_watch(db)
+    save_db(db_cleanup(db))
+    return rc
+
+
+def _install_signal_handler() -> None:
+    def shutdown(sig, frame):
+        save_db(db_cleanup(load_db()))
+        sys.exit(0)
+    signal.signal(signal.SIGINT, shutdown)
+    signal.signal(signal.SIGTERM, shutdown)
+
+
+if __name__ == '__main__':
+    _install_signal_handler()
+    raise SystemExit(run())
