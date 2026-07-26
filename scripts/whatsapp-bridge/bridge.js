@@ -523,6 +523,20 @@ async function startSocket() {
     // In self-chat mode, your own messages commonly arrive as 'append' rather
     // than 'notify'. Accept both and filter agent echo-backs below.
     if (type !== 'notify' && type !== 'append') return;
+    try {
+      console.error(JSON.stringify({
+        event: 'DEBUG_upsert_entry',
+        timestamp: new Date().toISOString(),
+        batchType: type,
+        batchLength: messages.length,
+        chats: messages.map(m => ({
+          chatId: m.key?.remoteJid,
+          isGroup: (m.key?.remoteJid || '').endsWith('@g.us'),
+          fromMe: !!m.key?.fromMe,
+          hasMessage: !!m.message,
+        })),
+      }));
+    } catch {}
 
     const botIds = Array.from(new Set([
       normalizeWhatsAppId(sock.user?.id),
@@ -580,6 +594,19 @@ async function startSocket() {
           if (decision.action === 'drop_echo') continue;
           if (decision.action === 'drop_disabled') continue;
           if (decision.action === 'drop_allowlist') {
+            try {
+              console.error(JSON.stringify({
+                event: 'DEBUG_owner_reject',
+                source: 'messages.upsert/fromMe_true_owner_chat',
+                chatId,
+                normalizedChatId: chatId.replace(/@.*$/, ''),
+                allowedGroups: Array.from(ALLOWED_GROUPS),
+                allowedUsers: Array.from(ALLOWED_USERS),
+                senderId,
+                forwardOwnerMessages: FORWARD_OWNER_MESSAGES,
+                stackTrace: new Error().stack.split('\n').slice(1, 8).join('\n'),
+              }));
+            } catch {}
             try {
               console.log(JSON.stringify({
                 event: 'ignored',
@@ -640,6 +667,19 @@ async function startSocket() {
         if (isGroup) {
           const normalizedChatId = chatId.replace(/@.*$/, '');
           if (WHATSAPP_GROUP_POLICY === 'allowlist' && ALLOWED_GROUPS.size > 0 && !ALLOWED_GROUPS.has(chatId) && !ALLOWED_GROUPS.has(normalizedChatId)) {
+            try {
+              console.error(JSON.stringify({
+                event: 'DEBUG_group_reject',
+                source: 'messages.upsert/fromMe_false_group_allowlist',
+                chatId,
+                normalizedChatId,
+                allowedGroups: Array.from(ALLOWED_GROUPS),
+                allowedGroupsSize: ALLOWED_GROUPS.size,
+                groupPolicy: WHATSAPP_GROUP_POLICY,
+                senderId,
+                stackTrace: new Error().stack.split('\n').slice(1, 8).join('\n'),
+              }));
+            } catch {}
             try {
               console.log(JSON.stringify({
                 event: 'ignored',
