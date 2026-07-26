@@ -50,6 +50,10 @@
   - `mkdir -p ~/.hermes/whatsapp && tar -xf /home/ubuntu/backups/vps-audit-20260726_123401/whatsapp-session-hermes412.tar -C ~/.hermes/whatsapp`
   - Reiniciar bridge/service aplicable
 
+## Checkpoints / rollback
+- No se confirmó un mecanismo built-in activo para checkpoint/rollback automático en esta sesión ni en `~/.hermes/config.yaml`.
+- Medida mínima segura mientras no se active: usar el backup literal de `/home/ubuntu/backups/...` y commits atómicos en `whatsapp/bridge-restore` como rollback.
+
 ## Notas especificas detectadas
 - Runtime no tiene git; el repo sí tiene remote configurado en `origin` como `https://github.com/romensuarezr/hermes-vps-config.git`
 - Ya existe diff entre runtime y repo en `bridge.js` por bloques de debug logging; no considerar ese diff como “error”, es estado intencional de auditoría
